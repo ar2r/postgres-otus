@@ -6,14 +6,14 @@
 
 ![img_1.png](img_1.png)
 
-## Поставьте на нее Postgres
+## 1. Поставьте на нее Postgres
 
 ```bash
 sudo apt-get update
 sudo apt install postgresql
 ```
 
-## Проверьте что кластер запущен через sudo -u postgres pg_lsclusters
+## 2. Проверьте что кластер запущен через sudo -u postgres pg_lsclusters
 
 ```bash
 root@otus:/opt/04# sudo -u postgres pg_lsclusters
@@ -21,7 +21,7 @@ Ver Cluster Port Status Owner    Data directory              Log file
 16  main    5432 online postgres /var/lib/postgresql/16/main /var/log/postgresql/postgresql-16-main.log
 ```
 
-## Зайдите из под пользователя postgres в psql и сделайте произвольную таблицу с произвольным содержимым
+## 3. Зайдите из под пользователя postgres в psql и сделайте произвольную таблицу с произвольным содержимым
 
 ```bash
 root@otus:/opt/04# sudo -u postgres psql
@@ -33,7 +33,7 @@ postgres=#
 \q
 ```
 
-## Остановите postgres например через sudo -u postgres pg_ctlcluster 15 main stop
+## 4. Остановите postgres например через sudo -u postgres pg_ctlcluster 15 main stop
 
 ```bash
 sudo -u postgres pg_ctlcluster 16 main stop
@@ -42,18 +42,18 @@ Ver Cluster Port Status Owner    Data directory              Log file
 16  main    5432 down   postgres /var/lib/postgresql/16/main /var/log/postgresql/postgresql-16-main.log
 ```
 
-## Создайте новый диск к ВМ размером 10GB
+## 5. Создайте новый диск к ВМ размером 10GB
 
 Создал новый диск в Яндекс Облаке: https://console.yandex.cloud
 
 ![img.png](img.png)
 
 
-## Добавьте свеже-созданный диск к виртуальной машине
+## 6. Добавьте свеже-созданный диск к виртуальной машине
 
 ![img_2.png](img_2.png)
 
-## Проинициализируйте диск согласно инструкции и подмонтировать файловую систему
+## 7. Проинициализируйте диск согласно инструкции и подмонтировать файловую систему
 
 Подключил дополнительный диск по инструкции: https://yandex.cloud/ru/docs/compute/operations/vm-control/vm-attach-disk?from=int-console-help-center-or-nav
 
@@ -93,7 +93,7 @@ tmpfs             201500      12    201488   1% /run/user/1000
 ```
 
 
-## Перезагрузите инстанс и убедитесь, что диск остается примонтированным
+## 8. Перезагрузите инстанс и убедитесь, что диск остается примонтированным
 
 ```bash
 artur@otus:~$ df
@@ -108,7 +108,7 @@ artur@otus:~$ uptime
  19:12:46 up 1 min,  1 user,  load average: 0.30, 0.20, 0.08
 ```
 
-## Сделайте пользователя postgres владельцем /mnt/data - chown -R postgres:postgres /mnt/data/
+## 9. Сделайте пользователя postgres владельцем /mnt/data - chown -R postgres:postgres /mnt/data/
 
 ```bash
 artur@otus:~$ ls -al /mnt
@@ -124,7 +124,7 @@ drwxr-xr-x 23 root     root     4096 Oct 19 19:11 ..
 drwxrwxrwx  3 postgres postgres 4096 Oct 19 19:03 pgdata
 ```
 
-## Перенесите содержимое /var/lib/postgres/15 в /mnt/data - mv /var/lib/postgresql/15/mnt/data
+## 10. Перенесите содержимое /var/lib/postgres/15 в /mnt/data - mv /var/lib/postgresql/15/mnt/data
 
 Перенес файлы, предварительно остановив кластер
 
@@ -147,7 +147,7 @@ drwxr-xr-x 3 postgres postgres  4096 Oct 19 18:35 16
 drwx------ 2 postgres postgres 16384 Oct 19 19:03 lost+found
 ```
 
-## Запуск кластера после переноса файлов 
+## 11. Запуск кластера после переноса файлов 
 
 ```bash
 artur@otus:~$ sudo -u postgres pg_ctlcluster 16 main start
@@ -155,7 +155,7 @@ Error: /var/lib/postgresql/16/main is not accessible or does not exist```
 ```
 При запуске получил ошибку. Кластер не знает про то, что мы перенесли файлы в другое место. Надо изменить конфигурационный файл.
 
-## Найти конфигурационный параметр
+## 12. Найти конфигурационный параметр
 
 ```bash
 sudo nano /etc/postgresql/16/main/postgresql.conf
@@ -171,7 +171,7 @@ Ver Cluster Port Status Owner    Data directory      Log file
 ```
 Кластер успешно запустился.
 
-## Через psql проверить наличие ранее созданных таблиц и их содержимое
+## 13. Через psql проверить наличие ранее созданных таблиц и их содержимое
 
 ```bash
 artur@otus:~$ sudo -u postgres psql
