@@ -1,47 +1,50 @@
 # Установка Postgres
 
-## Создать ВМ с Ubuntu 20.04/22.04 или развернуть докер любым удобным способом
+## 1. Создать ВМ с Ubuntu 20.04/22.04 или развернуть Docker
 
- - Создал ВМ в Яндекс Облаке: https://console.yandex.cloud
- - Выбрал образ Ubuntu, внешний IP адрес, добавил ssh ключ
+- Создал ВМ в Яндекс Облаке: [Yandex Cloud Console](https://console.yandex.cloud)
+- Выбрал образ Ubuntu, внешний IP адрес, добавил SSH ключ.
 
-## Поставить на нем Docker Engine
+## 2. Установка Docker Engine
 
-- Установил Docker по инструкции с офф сайта: https://docs.docker.com/engine/install/ubuntu/
+Установил Docker по официальной [инструкции](https://docs.docker.com/engine/install/ubuntu/):
 
 ```bash
 # Add Docker's official GPG key:
-artur@otus:~$ sudo apt-get update
-artur@otus:~$ sudo apt-get install ca-certificates curl
-artur@otus:~$ sudo install -m 0755 -d /etc/apt/keyrings
-artur@otus:~$ sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-artur@otus:~$ sudo chmod a+r /etc/apt/keyrings/docker.asc
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
 
 # Add the repository to Apt sources:
-artur@otus:~$ echo \
+echo \
   "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
   $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-artur@otus:~$ sudo apt-get update
 
-artur@otus:~$ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo apt-get update
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# Проверил, что работает
-artur@otus:~$ sudo docker --version
+# Проверка установки
+sudo docker --version
+# Вывод:
 Docker version 27.3.1, build ce12230
 ```
 
-## Сделать каталог /var/lib/postgres
+## 3. Создать каталог для Postgres
 
 ```bash
-root@otus:/home/artur# mkdir -p /var/lib/postgresql/data
-root@otus:/home/artur# la -al /var/lib/ | grep postgres
-drwxr-xr-x  2 root      root      4096 Oct 19 17:38 postgresql
+mkdir -p /var/lib/postgresql/data
+ls -al /var/lib/ | grep postgres
+# Вывод:
+drwxr-xr-x  2 root  root  4096 Oct 19 17:38 postgresql
 ```
 
-## Развернуть контейнер с Postgres смонтировав в него /var/lib/postgresql/data
+## 4. Развернуть контейнер с Postgres
 
-Создал в директории /opr/04/docker-compose.yaml. Мне так удобнее все нужные сервисы д
+Создал `docker-compose.yaml` в директории `/opt/04`:
+
 ```yaml
 services:
     psql:
@@ -83,7 +86,7 @@ root@otus:/opt/04# docker-compose up pg1 -d
 root@otus:/opt/04# docker logs -f pg1
 ```
 
-## Развернуть контейнер с клиентом postgres
+## 5. Развернуть контейнер с клиентом postgres
 
 ```bash
 # Запустить контейнер с клиентом
@@ -100,7 +103,7 @@ Usage:
 ```
 
 
-## Подключится из контейнера с клиентом к контейнеру с сервером и сделать таблицу с парой строк
+## 6. Подключится из контейнера с клиентом к контейнеру с сервером и сделать таблицу с парой строк
 
 ```bash
 root@d7b7996cae18:/# psql -h pg1 -p 5432 postgres postgres
@@ -126,7 +129,7 @@ postgres=# select * from employees;
 (3 rows)
 ```
 
-## Подключится к контейнеру с сервером с ноутбука/компьютера извне инстансов ЯО/места установки докера
+## 7. Подключится к контейнеру с сервером с ноутбука/компьютера извне инстансов ЯО/места установки докера
 
 Публичный IP адрес 84.252.132.16 взят из Яндекс Облака. Порт 5440 проброшен на порт 5432 контейнера pg1.
 
@@ -141,7 +144,7 @@ postgres=# select * from employees;
   3 | Robert Johnson | Designer  | 55000.25
 (3 строки)
 ```
-## Удалить контейнер с сервером
+## 8. Удалить контейнер с сервером
 
 ```bash
 root@otus:/opt/04# docker compose rm pg1
@@ -154,7 +157,7 @@ CONTAINER ID   IMAGE             COMMAND                  CREATED          STATU
 d7b7996cae18   postgres:latest   "docker-entrypoint.s…"   22 minutes ago   Up 22 minutes   5432/tcp   psql_client
 ```
 
-## Создать его заново (первый сервер)
+## 9. Создать его заново (первый сервер)
 
 ```bash
 root@otus:/opt/04# docker compose up pg1 -d
@@ -165,14 +168,14 @@ CONTAINER ID   IMAGE             COMMAND                  CREATED          STATU
 d7b7996cae18   postgres:latest   "docker-entrypoint.s…"   23 minutes ago   Up 23 minutes   5432/tcp                                      psql_client
 ```
 
-## Подключится снова из контейнера с клиентом к контейнеру с сервером
+## 10. Подключится снова из контейнера с клиентом к контейнеру с сервером
 
 ```bash
 root@otus:/opt/04# docker exec -ti psql_client bash
 root@d7b7996cae18:/# psql -h pg1 -p 5432 postgres postgres
 ```
 
-## Проверить, что данные остались на месте
+## 11. Проверить, что данные остались на месте
 
 ```bash
 postgres=# select * from employees;
@@ -186,7 +189,7 @@ postgres=# select * from employees;
 
 Данные доступны (не удалились).
 
-## Разные проблемы с которыми сталкивался
+## 12. Разные проблемы с которыми сталкивался
 
  - Когда в ЯО остановил и повторно запустил виртальную машину - публичный IP адрес выдался другой, не тот который был выдан до остановки Виртуальной машины.
  - Docker запущен из под root, поэтому проблем с правами доступа не возникло. Иногда Docker запускают не из под root и тогда на директорию /var/lib/postgresql/data требуется навешивать правильные пермишены.
