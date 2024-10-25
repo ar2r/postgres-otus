@@ -375,3 +375,21 @@ postgres=# SELECT pg_size_pretty(pg_total_relation_size('tags'));
 ```
 alter table tags set (autovacuum_enabled = on);
 ```
+
+## 20. Написать анонимную процедуру, в которой в цикле 10 раз обновятся все строчки в искомой таблице.
+
+```postgresql
+DO $$
+DECLARE
+    i INT;
+BEGIN
+    FOR i IN 1..10 LOOP
+        -- Выводим номер текущего шага цикла
+        RAISE NOTICE 'Шаг %', i;
+        
+        -- Обновляем все строки в таблице, добавляя случайный символ к значению в столбце `tag`
+        UPDATE tags
+        SET tag = tag || chr(trunc(65 + random() * 25)::int);
+    END LOOP;
+END $$;
+```
