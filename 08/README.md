@@ -98,6 +98,7 @@ tuple    |        5 |    16389 |    0 |     1 |            |               |    
 
 В трех разных сеансах выполнить SQL запросы:
 ```bash
+sudo -u postgres psql
 # Сеанс 1
 BEGIN;
 UPDATE employees SET salary = 80000 WHERE id = 1;
@@ -113,16 +114,43 @@ UPDATE employees SET salary = 90000 WHERE id = 3;
 # Сеанс 1
 UPDATE employees SET salary = 95000 WHERE id = 2;
 
+# В логе появились записи
+2024-11-17 09:18:21.162 UTC [1457] postgres@postgres DETAIL:  Process holding the lock: 1465. Wait queue: 1457.
+2024-11-17 09:18:21.162 UTC [1457] postgres@postgres CONTEXT:  while updating tuple (0,2) in relation "employees"
+2024-11-17 09:18:21.162 UTC [1457] postgres@postgres STATEMENT:  UPDATE employees SET salary = 95000 WHERE id = 2;
+
 # Сеанс 2
 UPDATE employees SET salary = 100000 WHERE id = 3;
 
+# В логе появились записи
+2024-11-17 09:19:09.245 UTC [1465] postgres@postgres LOG:  process 1465 still waiting for ShareLock on transaction 748 after 200.077 ms
+2024-11-17 09:19:09.245 UTC [1465] postgres@postgres DETAIL:  Process holding the lock: 1470. Wait queue: 1465.
+2024-11-17 09:19:09.245 UTC [1465] postgres@postgres CONTEXT:  while updating tuple (0,3) in relation "employees"
+2024-11-17 09:19:09.245 UTC [1465] postgres@postgres STATEMENT:  UPDATE employees SET salary = 100000 WHERE id = 3;
+
+
 # Сеанс 3
 UPDATE employees SET salary = 105000 WHERE id = 1;
+
+# В логе появились записи
+2024-11-17 09:19:46.768 UTC [1470] postgres@postgres LOG:  process 1470 detected deadlock while waiting for ShareLock on transaction 746 after 200.113 ms
+2024-11-17 09:19:46.768 UTC [1470] postgres@postgres DETAIL:  Process holding the lock: 1457. Wait queue: .
+2024-11-17 09:19:46.768 UTC [1470] postgres@postgres CONTEXT:  while updating tuple (0,1) in relation "employees"
+2024-11-17 09:19:46.768 UTC [1470] postgres@postgres STATEMENT:  UPDATE employees SET salary = 105000 WHERE id = 1;
+2024-11-17 09:19:46.768 UTC [1470] postgres@postgres ERROR:  deadlock detected
+2024-11-17 09:19:46.768 UTC [1470] postgres@postgres DETAIL:  Process 1470 waits for ShareLock on transaction 746; blocked by process 1457.
+	Process 1457 waits for ShareLock on transaction 747; blocked by process 1465.
+	Process 1465 waits for ShareLock on transaction 748; blocked by process 1470.
+	Process 1470: UPDATE employees SET salary = 105000 WHERE id = 1;
+	Process 1457: UPDATE employees SET salary = 95000 WHERE id = 2;
+	Process 1465: UPDATE employees SET salary = 100000 WHERE id = 3;
+2024-11-17 09:19:46.768 UTC [1470] postgres@postgres HINT:  See server log for query details.
+2024-11-17 09:19:46.768 UTC [1470] postgres@postgres CONTEXT:  while updating tuple (0,1) in relation "employees"
+2024-11-17 09:19:46.768 UTC [1470] postgres@postgres STATEMENT:  UPDATE employees SET salary = 105000 WHERE id = 1;
+2024-11-17 09:19:46.769 UTC [1465] postgres@postgres LOG:  process 1465 acquired ShareLock on transaction 748 after 37723.652 ms
+2024-11-17 09:19:46.769 UTC [1465] postgres@postgres CONTEXT:  while updating tuple (0,3) in relation "employees"
+2024-11-17 09:19:46.769 UTC [1465] postgres@postgres STATEMENT:  UPDATE employees SET salary = 100000 WHERE id = 3;
 ```
-
-Результат: все три сеанса заблокируются, так как каждая транзакция будет ждать завершения другой.
-
-Но в данном случае, в журнале сообщений не будет информации о взаимоблокировке, так как PostgreSQL не обнаруживает взаимоблокировку. Вместо этого, транзакции будут ждать завершения друг друга.
 
 ## 4. Могут ли две транзакции, выполняющие единственную команду UPDATE одной и той же таблицы (без where), заблокировать друг друга?
 
