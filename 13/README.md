@@ -33,7 +33,9 @@ Bitmap Heap Scan on salary  (cost=4.84..208.91 rows=53 width=24) (actual time=0.
 Planning Time: 0.476 ms
 Execution Time: 2.057 ms
 ```
-Добавленный индекс позволил искать в таблицы без sec scan. За счет индекса скорость выполнения запроса увеличилась почти в 100 раз.
+
+Добавленный индекс позволил искать в таблицы без sec scan. За счет индекса скорость выполнения запроса увеличилась почти
+в 100 раз.
 
 ## 3. Реализовать индекс для полнотекстового поиска
 
@@ -50,7 +52,7 @@ where lower(last_name) = lower('Swan');
 explain analyse
 SELECT *
 FROM employee
-WHERE to_tsvector('english', last_name) @@ plainto_tsquery('Swan');
+WHERE to_tsvector(last_name) @@ plainto_tsquery('swan');
 
 -- Результат с индксом
 Bitmap Heap Scan on employee  (cost=20.93..3056.38 rows=1500 width=35) (actual time=0.101..0.714 rows=196 loops=1)
@@ -60,6 +62,12 @@ Bitmap Heap Scan on employee  (cost=20.93..3056.38 rows=1500 width=35) (actual t
 "        Index Cond: (to_tsvector('english'::regconfig, (last_name)::text) @@ to_tsquery('sWaN'::text))"
 Planning Time: 0.265 ms
 Execution Time: 0.780 ms
+
+-- Но вот таков запрос не будет использовать полнотекстовый индекс. Для like/ilike нужно создавать обычный btree индекс.
+explain analyse
+SELECT *
+FROM employee
+WHERE last_name ilike 'Swa%';
 ```
 
 Время выполнения запроса уменьшилось более чем в 40 раз.
@@ -68,13 +76,17 @@ Execution Time: 0.780 ms
 
 ```sql
 CREATE INDEX idx_employee_birth_date_before_2000
-ON employees.employee (birth_date)
-WHERE birth_date < '2000-01-01';
+    ON employees.employee (birth_date)
+    WHERE birth_date < '2000-01-01';
 
 -- Запрос не использует индекс
-explain analyse SELECT * FROM employee where birth_date = '2005-01-01 00:00:00'
-
-Gather  (cost=1000.00..5716.36 rows=63 width=35) (actual time=13.112..14.901 rows=0 loops=1)
+explain analyse
+SELECT *
+FROM employee
+where birth_date = '2005-01-01 00:00:00'
+    Gather
+    (cost=1000.00..5716.36 rows =63 width=35)
+    (actual time=13.112..14.901 rows=0 loops=1)
   Workers Planned: 1
   Workers Launched: 1
   ->  Parallel Seq Scan on employee  (cost=0.00..4710.06 rows=37 width=35) (actual time=9.490..9.491 rows=0 loops=2)
@@ -84,7 +96,10 @@ Planning Time: 0.136 ms
 Execution Time: 14.921 ms
 
 -- Запрос использует индекс
-explain analyse SELECT * FROM employee where birth_date = '1995-01-01 00:00:00';
+explain analyse
+SELECT *
+FROM employee
+where birth_date = '1995-01-01 00:00:00';
 
 Bitmap Heap Scan on employee  (cost=4.79..227.59 rows=63 width=35) (actual time=0.141..0.142 rows=0 loops=1)
   Recheck Cond: (birth_date = '1995-01-01'::date)
@@ -94,18 +109,32 @@ Planning Time: 0.381 ms
 Execution Time: 0.198 ms
 ```
 
+По результатам выполнения запросов видно, что в зависимости от условия выборки birth_date индекс или используется или не
+используется.
+
 ## 5. Создать индекс на несколько полей
 
 ```sql
 create index title_from_date_to_date_index
     on employees.title (from_date, to_date);
-    
+
 -- Запрос не использует индекс, т.к. в условии не используется фильтрация по полю from_date
-explain analyse SELECT * FROM title where to_date > '2000-01-01';    
-    
+explain analyse
+SELECT *
+FROM title
+where to_date > '2000-01-01';
+
 -- Запросы использующие индексы:
-explain analyse SELECT * FROM title where from_date > '2000-01-01';
-explain analyse SELECT * FROM title where from_date > '2000-01-01' AND to_date < '2024-01-01';
+explain analyse
+SELECT *
+FROM title
+where from_date > '2000-01-01';
+explain analyse
+SELECT *
+FROM title
+where from_date > '2000-01-01'
+  AND to_date < '2024-01-01';
 ```
 
-Порядок полей в индексе имеет значение. Индекс не будет использоваться, если в условии WHERE пропускать поля, которые указаны первыми в списке.
+Порядок полей в индексе имеет значение. Индекс не будет использоваться, если в условии WHERE пропускать поля, которые
+указаны первыми в списке.
